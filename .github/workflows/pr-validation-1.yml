@@ -12,3 +12,40 @@ jobs:
         run: |
           echo "Running PR validation 1"
           echo "No-op validation complete"
+      
+      - name: Generate Terraform Plan Artifact
+        run: |
+          mkdir -p terraform-plans
+          cat > terraform-plans/plan1.json <<'EOF'
+          {
+            "resource_changes": [
+              {
+                "address": "aws_instance.example",
+                "type": "aws_instance",
+                "change": {
+                  "actions": ["create"]
+                }
+              }
+            ]
+          }
+          EOF
+          cat > terraform-plans/plan2.json <<'EOF'
+          {
+            "resource_changes": [
+              {
+                "address": "aws_s3_bucket.data",
+                "type": "aws_s3_bucket",
+                "change": {
+                  "actions": ["update"]
+                }
+              }
+            ]
+          }
+          EOF
+      
+      - name: Upload Terraform Plans
+        uses: actions/upload-artifact@v4
+        with:
+          name: terraform-plans-validate-1
+          path: terraform-plans/*.json
+          retention-days: 1

@@ -44,3 +44,32 @@ jobs:
           
           echo ""
           echo "Verification complete"
+      
+      - name: Download Terraform Plans from validate-1
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-plans-validate-1
+          path: downloaded-plans
+        continue-on-error: true
+      
+      - name: Process Terraform Plans
+        run: |
+          echo ""
+          echo "Processing Terraform Plans..."
+          
+          if [ -d "downloaded-plans" ] && [ "$(ls -A downloaded-plans)" ]; then
+            echo "Found Terraform plans:"
+            for plan_file in downloaded-plans/*.json; do
+              if [ -f "$plan_file" ]; then
+                echo ""
+                echo "Plan: $(basename $plan_file)"
+                echo "---"
+                cat "$plan_file" | jq -r '.resource_changes[] | "  Resource: \(.address) | Type: \(.type) | Actions: \(.change.actions | join(", "))"' || cat "$plan_file"
+              fi
+            done
+          else
+            echo "No Terraform plans found (this is expected on pull_request trigger)"
+          fi
+          
+          echo ""
+          echo "Plan processing complete"
