@@ -16,13 +16,21 @@ jobs:
       - name: Generate Terraform Plan Artifact
         run: |
           mkdir -p terraform-plans
-          # Empty plan with no changes
+          # Plan with changes to block auto-merge
           cat > terraform-plans/plan1.json <<'EOF'
           {
-            "resource_changes": []
+            "resource_changes": [
+              {
+                "address": "aws_instance.web",
+                "type": "aws_instance",
+                "change": {
+                  "actions": ["create"]
+                }
+              }
+            ]
           }
           EOF
-          # Another empty plan
+          # Empty plan
           cat > terraform-plans/plan2.json <<'EOF'
           {
             "resource_changes": []
