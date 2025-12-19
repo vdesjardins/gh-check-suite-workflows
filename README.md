@@ -2,3 +2,4 @@
 ## after that
 # Test
 # Test Artifact Flow
+# Test Auto-merge
