@@ -1,8 +1,11 @@
 name: Check Suite Verifier
 
 on:
-  check_suite:
+  workflow_run:
+    workflows: ["PR Validation 1", "PR Validation 2"]
     types: [completed]
+  pull_request:
+    types: [opened, synchronize, reopened]
 
 jobs:
   verify:
@@ -15,17 +18,58 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          echo "Check Suite ID: ${{ github.event.check_suite.id }}"
-          echo "Check Suite Status: ${{ github.event.check_suite.status }}"
-          echo "Check Suite Conclusion: ${{ github.event.check_suite.conclusion }}"
-          echo "Head SHA: ${{ github.event.check_suite.head_sha }}"
-          echo "Head Branch: ${{ github.event.check_suite.head_branch }}"
+          if [ "${{ github.event_name }}" == "workflow_run" ]; then
+            echo "Triggered by workflow_run event"
+            echo "Workflow Run ID: ${{ github.event.workflow_run.id }}"
+            echo "Workflow Name: ${{ github.event.workflow_run.name }}"
+            echo "Workflow Status: ${{ github.event.workflow_run.status }}"
+            echo "Workflow Conclusion: ${{ github.event.workflow_run.conclusion }}"
+            SHA="${{ github.event.workflow_run.head_sha }}"
+            echo "Head SHA: $SHA"
+            echo "Head Branch: ${{ github.event.workflow_run.head_branch }}"
+          else
+            echo "Triggered by pull_request event"
+            SHA="${{ github.event.pull_request.head.sha }}"
+            echo "Head SHA: $SHA"
+            echo "Head Branch: ${{ github.head_ref }}"
+          fi
           
-          echo "Fetching all check runs for this suite..."
+          echo ""
+          echo "Fetching all check runs for commit $SHA..."
           gh api \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            "/repos/${{ github.repository }}/check-suites/${{ github.event.check_suite.id }}/check-runs" \
+            "/repos/${{ github.repository }}/commits/$SHA/check-runs" \
             --jq '.check_runs[] | "Check: \(.name) | Status: \(.status) | Conclusion: \(.conclusion)"'
           
+          echo ""
           echo "Verification complete"
+      
+      - name: Download Terraform Plans from validate-1
+        uses: actions/download-artifact@v4
+        with:
+          name: terraform-plans-validate-1
+          path: downloaded-plans
+        continue-on-error: true
+      
+      - name: Process Terraform Plans
+        run: |
+          echo ""
+          echo "Processing Terraform Plans..."
+          
+          if [ -d "downloaded-plans" ] && [ "$(ls -A downloaded-plans)" ]; then
+            echo "Found Terraform plans:"
+            for plan_file in downloaded-plans/*.json; do
+              if [ -f "$plan_file" ]; then
+                echo ""
+                echo "Plan: $(basename $plan_file)"
+                echo "---"
+                cat "$plan_file" | jq -r '.resource_changes[] | "  Resource: \(.address) | Type: \(.type) | Actions: \(.change.actions | join(", "))"' || cat "$plan_file"
+              fi
+            done
+          else
+            echo "No Terraform plans found (this is expected on pull_request trigger)"
+          fi
+          
+          echo ""
+          echo "Plan processing complete"
