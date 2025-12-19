@@ -16,30 +16,16 @@ jobs:
       - name: Generate Terraform Plan Artifact
         run: |
           mkdir -p terraform-plans
+          # Empty plan with no changes
           cat > terraform-plans/plan1.json <<'EOF'
           {
-            "resource_changes": [
-              {
-                "address": "aws_instance.example",
-                "type": "aws_instance",
-                "change": {
-                  "actions": ["create"]
-                }
-              }
-            ]
+            "resource_changes": []
           }
           EOF
+          # Another empty plan
           cat > terraform-plans/plan2.json <<'EOF'
           {
-            "resource_changes": [
-              {
-                "address": "aws_s3_bucket.data",
-                "type": "aws_s3_bucket",
-                "change": {
-                  "actions": ["update"]
-                }
-              }
-            ]
+            "resource_changes": []
           }
           EOF
       
