@@ -45,13 +45,57 @@ jobs:
           echo ""
           echo "Verification complete"
       
+      - name: Wait for all validations to complete
+        if: github.event_name == 'workflow_run'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          SHA="${{ github.event.workflow_run.head_sha }}"
+          echo "Waiting for all validation checks to complete for commit $SHA..."
+          
+          MAX_WAIT=300  # 5 minutes max wait
+          ELAPSED=0
+          SLEEP_INTERVAL=10
+          
+          while [ $ELAPSED -lt $MAX_WAIT ]; do
+            # Get status of both validation checks
+            VALIDATE_1=$(gh api \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "/repos/${{ github.repository }}/commits/$SHA/check-runs" \
+              --jq '.check_runs[] | select(.name == "validate-1") | .status' | head -1)
+            
+            VALIDATE_2=$(gh api \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "/repos/${{ github.repository }}/commits/$SHA/check-runs" \
+              --jq '.check_runs[] | select(.name == "validate-2") | .status' | head -1)
+            
+            echo "validate-1: $VALIDATE_1, validate-2: $VALIDATE_2"
+            
+            if [ "$VALIDATE_1" = "completed" ] && [ "$VALIDATE_2" = "completed" ]; then
+              echo "✓ All validations completed"
+              break
+            fi
+            
+            echo "Waiting for validations to complete... (${ELAPSED}s elapsed)"
+            sleep $SLEEP_INTERVAL
+            ELAPSED=$((ELAPSED + SLEEP_INTERVAL))
+          done
+          
+          if [ $ELAPSED -ge $MAX_WAIT ]; then
+            echo "⚠️  Timeout waiting for validations to complete"
+            exit 1
+          fi
+      
       - name: Download Terraform Plans from validate-1
         if: github.event_name == 'workflow_run'
         uses: dawidd6/action-download-artifact@v6
         with:
           name: terraform-plans-validate-1
           path: downloaded-plans
-          run_id: ${{ github.event.workflow_run.id }}
+          workflow: pr-validation-1.yml
+          commit: ${{ github.event.workflow_run.head_sha }}
           github_token: ${{ secrets.GITHUB_TOKEN }}
         continue-on-error: true
       
