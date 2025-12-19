@@ -46,10 +46,13 @@ jobs:
           echo "Verification complete"
       
       - name: Download Terraform Plans from validate-1
+        if: github.event_name == 'workflow_run'
         uses: actions/download-artifact@v4
         with:
           name: terraform-plans-validate-1
           path: downloaded-plans
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
         continue-on-error: true
       
       - name: Process Terraform Plans
