@@ -1,0 +1,14 @@
+name: PR Validation 2
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validation Step
+        run: |
+          echo "Running PR validation 2"
+          echo "No-op validation complete"

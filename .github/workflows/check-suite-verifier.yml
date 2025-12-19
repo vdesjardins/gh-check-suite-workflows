@@ -1,0 +1,31 @@
+name: Check Suite Verifier
+
+on:
+  check_suite:
+    types: [completed]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Verify Check Suite Status
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          echo "Check Suite ID: ${{ github.event.check_suite.id }}"
+          echo "Check Suite Status: ${{ github.event.check_suite.status }}"
+          echo "Check Suite Conclusion: ${{ github.event.check_suite.conclusion }}"
+          echo "Head SHA: ${{ github.event.check_suite.head_sha }}"
+          echo "Head Branch: ${{ github.event.check_suite.head_branch }}"
+          
+          echo "Fetching all check runs for this suite..."
+          gh api \
+            -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            "/repos/${{ github.repository }}/check-suites/${{ github.event.check_suite.id }}/check-runs" \
+            --jq '.check_runs[] | "Check: \(.name) | Status: \(.status) | Conclusion: \(.conclusion)"'
+          
+          echo "Verification complete"
