@@ -2,7 +2,7 @@ name: Check Suite Verifier
 
 on:
   workflow_run:
-    workflows: ["PR Validation 1", "PR Validation 2"]
+    workflows: ["PR Validation 2"]
     types: [completed]
   pull_request:
     types: [opened, synchronize, reopened]
