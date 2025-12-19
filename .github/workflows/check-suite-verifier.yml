@@ -4,6 +4,8 @@ on:
   workflow_run:
     workflows: ["PR Validation 1", "PR Validation 2"]
     types: [completed]
+  pull_request:
+    types: [opened, synchronize, reopened]
 
 jobs:
   verify:
@@ -16,19 +18,28 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          echo "Workflow Run ID: ${{ github.event.workflow_run.id }}"
-          echo "Workflow Name: ${{ github.event.workflow_run.name }}"
-          echo "Workflow Status: ${{ github.event.workflow_run.status }}"
-          echo "Workflow Conclusion: ${{ github.event.workflow_run.conclusion }}"
-          echo "Head SHA: ${{ github.event.workflow_run.head_sha }}"
-          echo "Head Branch: ${{ github.event.workflow_run.head_branch }}"
+          if [ "${{ github.event_name }}" == "workflow_run" ]; then
+            echo "Triggered by workflow_run event"
+            echo "Workflow Run ID: ${{ github.event.workflow_run.id }}"
+            echo "Workflow Name: ${{ github.event.workflow_run.name }}"
+            echo "Workflow Status: ${{ github.event.workflow_run.status }}"
+            echo "Workflow Conclusion: ${{ github.event.workflow_run.conclusion }}"
+            SHA="${{ github.event.workflow_run.head_sha }}"
+            echo "Head SHA: $SHA"
+            echo "Head Branch: ${{ github.event.workflow_run.head_branch }}"
+          else
+            echo "Triggered by pull_request event"
+            SHA="${{ github.event.pull_request.head.sha }}"
+            echo "Head SHA: $SHA"
+            echo "Head Branch: ${{ github.head_ref }}"
+          fi
           
           echo ""
-          echo "Fetching all check runs for commit ${{ github.event.workflow_run.head_sha }}..."
+          echo "Fetching all check runs for commit $SHA..."
           gh api \
             -H "Accept: application/vnd.github+json" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
-            "/repos/${{ github.repository }}/commits/${{ github.event.workflow_run.head_sha }}/check-runs" \
+            "/repos/${{ github.repository }}/commits/$SHA/check-runs" \
             --jq '.check_runs[] | "Check: \(.name) | Status: \(.status) | Conclusion: \(.conclusion)"'
           
           echo ""
